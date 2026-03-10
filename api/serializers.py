@@ -30,11 +30,14 @@ class QuestionWriteSerializer(serializers.ModelSerializer):
         question.choices.exclude(id__in=existing_ids).delete()
 
         for data in choices_data:
-            choice_id = data.pop('id')
-            Choice.objects.update_or_create(
-                id=choice_id,
-                defaults={**data, 'question': question},
-            )
+            choice_id = data.pop('id', None)
+            if choice_id:
+                Choice.objects.update_or_create(
+                    id=choice_id,
+                    defaults={**data, 'question': question},
+                )
+            else:
+                Choice.objects.create(**data, question=question)
 
     def create(self, validated_data):
         choices_data = validated_data.pop('choices', [])

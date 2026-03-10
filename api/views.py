@@ -5,18 +5,12 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.response import Response
 
-from .permissions import IsAdminUser, IsAdminOrReadOnly
 from .models import Answer, Question, Survey, SurveySession
-from .serializers import (
-    AnswerSerializer,
-    QuestionSerializer,
-    QuestionWriteSerializer,
-    SurveyDetailSerializer,
-    SurveyListSerializer,
-    SurveySessionSerializer,
-    SurveyStatSerializer,
-    SurveyWriteSerializer,
-)
+from .permissions import IsAdminOrReadOnly, IsAdminUser
+from .serializers import (AnswerSerializer, QuestionSerializer,
+                          QuestionWriteSerializer, SurveyDetailSerializer,
+                          SurveyListSerializer, SurveySessionSerializer,
+                          SurveyStatSerializer, SurveyWriteSerializer)
 
 
 class SurveyViewSet(viewsets.ModelViewSet):
@@ -50,6 +44,8 @@ class QuestionViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsAdminUser]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Question.objects.none()
         return (
             Question.objects
             .filter(survey_id=self.kwargs['survey_pk'])
@@ -75,6 +71,8 @@ class SurveySessionViewSet(
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return SurveySession.objects.none()
         return (
             SurveySession.objects
             .filter(user=self.request.user)
@@ -92,6 +90,8 @@ class AnswerViewSet(
     filterset_fields = ['session']
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Answer.objects.none()
         return (
             Answer.objects
             .filter(session__user=self.request.user)
