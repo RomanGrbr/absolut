@@ -43,7 +43,7 @@ class QuestionWriteSerializer(serializers.ModelSerializer):
         return question
 
     def update(self, instance, validated_data):
-        choices_data = validated_data.pop('choices')
+        choices_data = validated_data.pop('choices', None)
         if choices_data is not None:
             self._save_choices(instance, choices_data)
         return super().update(instance, validated_data)

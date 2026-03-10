@@ -1,11 +1,11 @@
-from django.db.models import Avg, Count, DurationField, F, Prefetch
+from django.db.models import Avg, Count, DurationField, F, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.response import Response
 
-from .permissions import IsAdminUser
+from .permissions import IsAdminUser, IsAdminOrReadOnly
 from .models import Answer, Question, Survey, SurveySession
 from .serializers import (
     AnswerSerializer,
@@ -20,14 +20,13 @@ from .serializers import (
 
 
 class SurveyViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
 
     def get_queryset(self):
-        return (
-            Survey.objects
-            .select_related('author')
-            .annotate(questions_count=Count('questions'))
-        )
+        qs = Survey.objects.select_related('author')
+        if self.action == 'list':
+            qs = qs.annotate(questions_count=Count('questions'))
+        return qs
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -83,7 +82,6 @@ class SurveySessionViewSet(
         )
 
 
-
 class AnswerViewSet(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
@@ -108,7 +106,7 @@ class AnswerViewSet(
             session.save(update_fields=['completed_at'])
 
 
-class NextQuestionView(generics.RetrieveAPIView):
+class NextQuestionView(generics.GenericAPIView):
     serializer_class = QuestionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -153,22 +151,23 @@ class NextQuestionView(generics.RetrieveAPIView):
         return Response(serializer.data)
 
 
-class SurveyStatView(generics.RetrieveAPIView):
+class SurveyStatView(generics.GenericAPIView):
     serializer_class = SurveyStatSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminUser]
 
     def get(self, request, *args, **kwargs):
         survey = get_object_or_404(Survey, pk=kwargs['survey_pk'])
 
-        sessions_qs = survey.sessions.all()
-        total_sessions = sessions_qs.count()
-        completed_sessions = sessions_qs.filter(completed_at__isnull=False).count()
-        avg_data = sessions_qs.filter(completed_at__isnull=False).aggregate(
-            avg_sec=Avg(F('completed_at') - F('started_at'), output_field=DurationField())
+        sessions_agg = survey.sessions.aggregate(
+            total=Count('id'),
+            completed=Count('id', filter=Q(completed_at__isnull=False)),
+            avg_sec=Avg(
+                F('completed_at') - F('started_at'),
+                output_field=DurationField(),
+                filter=Q(completed_at__isnull=False),
+            ),
         )
-        avg_duration = None
-        if avg_data['avg_sec']:
-            avg_duration = avg_data['avg_sec'].total_seconds()
+        avg_duration = sessions_agg['avg_sec'].total_seconds() if sessions_agg['avg_sec'] else None
 
         questions = (
             survey.questions
@@ -199,8 +198,8 @@ class SurveyStatView(generics.RetrieveAPIView):
 
         data = {
             'survey_id': survey.pk,
-            'total_sessions': total_sessions,
-            'completed_sessions': completed_sessions,
+            'total_sessions': sessions_agg['total'],
+            'completed_sessions': sessions_agg['completed'],
             'avg_duration_seconds': avg_duration,
             'questions': questions_stat,
         }
