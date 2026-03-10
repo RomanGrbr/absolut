@@ -88,6 +88,7 @@ class SurveySession(models.Model):
     class Meta:
         verbose_name = 'Прохождение опроса'
         verbose_name_plural = 'прохождения опросов'
+        ordering = ['-started_at']
         constraints = [
             models.UniqueConstraint(
                 fields=('survey', 'user'),
