@@ -2,9 +2,12 @@ from django.conf import settings
 from django.db import models
 
 
+MAX_LENGTH = 255
+TEXT_SLICE = 50
+
+
 class Survey(models.Model):
-    title = models.CharField('Заголовок', max_length=255)
-    description = models.TextField('Описание', blank=True)
+    title = models.CharField('Заголовок', max_length=MAX_LENGTH)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -12,7 +15,6 @@ class Survey(models.Model):
         verbose_name='Автор',
     )
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
-    updated_at = models.DateTimeField('Дата изменения', auto_now=True)
 
     class Meta:
         verbose_name = 'Опрос'
@@ -31,16 +33,18 @@ class Question(models.Model):
         verbose_name='Опрос',
     )
     text = models.TextField('Текст вопроса')
-    order = models.PositiveIntegerField('Порядок', default=0, db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    order = models.PositiveIntegerField('Порядок', default=0)
 
     class Meta:
         verbose_name = 'Вопрос'
         verbose_name_plural = 'вопросы'
-        ordering = ['order', 'created_at']
+        ordering = ['order']
+        indexes = [
+            models.Index(fields=['survey', 'order']),
+        ]
 
     def __str__(self):
-        return f"{self.survey.title} - Вопрос {self.order}: {self.text[:50]}"
+        return f"{self.survey.title} - Вопрос {self.order}: {self.text[:TEXT_SLICE]}"
 
 
 class Choice(models.Model):
@@ -50,16 +54,19 @@ class Choice(models.Model):
         related_name='choices',
         verbose_name='Вопрос',
     )
-    text = models.CharField('Текст варианта', max_length=255)
-    order = models.PositiveIntegerField('Порядок', default=0, db_index=True)
+    text = models.CharField('Текст варианта', max_length=MAX_LENGTH)
+    order = models.PositiveIntegerField('Порядок', default=0)
 
     class Meta:
         verbose_name = 'Вариант ответа'
         verbose_name_plural = 'варианты ответов'
         ordering = ['order']
+        indexes = [
+            models.Index(fields=['question', 'order']),
+        ]
 
     def __str__(self):
-        return f'{self.question} → {self.text[:50]}'
+        return f'{self.question} → {self.text[:TEXT_SLICE]}'
 
 
 class SurveySession(models.Model):
@@ -114,10 +121,10 @@ class Answer(models.Model):
         on_delete=models.CASCADE,
         verbose_name='Вопрос',
     )
-    choices = models.ManyToManyField(
+    choice = models.ForeignKey(
         Choice,
-        verbose_name='Выбранные варианты',
-        blank=True,
+        on_delete=models.PROTECT,
+        verbose_name='Выбранный вариант',
     )
     answered_at = models.DateTimeField('Время ответа', auto_now_add=True)
 
@@ -133,4 +140,4 @@ class Answer(models.Model):
         ]
 
     def __str__(self):
-        return f'Сеанс {self.session_id} / Вопрос {self.question}'
+        return f'Сеанс {self.session} / Вопрос {self.question}'

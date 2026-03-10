@@ -10,14 +10,14 @@ class User(AbstractUser):
 
     role = models.CharField(
         'Роль',
-        max_length=20,
+        max_length=max(len(role) for role, _ in Role.choices),
         choices=Role.choices,
         default=Role.RESPONDENT,
     )
 
     class Meta(AbstractUser.Meta):
         verbose_name = 'Пользователь'
-        verbose_name_plural = 'Пользователи'
+        verbose_name_plural = 'пользователи'
         swappable = 'AUTH_USER_MODEL'
 
     @property
