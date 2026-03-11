@@ -96,6 +96,10 @@ class SurveySession(models.Model):
             ),
         ]
 
+    def __str__(self):
+        status = 'завершён' if self.is_completed else 'в процессе'
+        return f'{self.user} → {self.survey} ({status})'
+
     @property
     def is_completed(self) -> bool:
         return self.completed_at is not None
@@ -105,10 +109,6 @@ class SurveySession(models.Model):
         if self.completed_at:
             return (self.completed_at - self.started_at).total_seconds()
         return None
-
-    def __str__(self):
-        status = 'завершён' if self.is_completed else 'в процессе'
-        return f'{self.user} → {self.survey} ({status})'
 
 
 class Answer(models.Model):

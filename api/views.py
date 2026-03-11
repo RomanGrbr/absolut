@@ -5,7 +5,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.response import Response
 
-from .models import Answer, Question, Survey, SurveySession
+from .models import Answer, Choice, Question, Survey, SurveySession
 from .permissions import IsAdminOrReadOnly, IsAdminUser
 from .serializers import (AnswerSerializer, QuestionSerializer,
                           QuestionWriteSerializer, SurveyDetailSerializer,
@@ -133,14 +133,10 @@ class NextQuestionView(generics.GenericAPIView):
                 {'detail': 'Активный сеанс не найден.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        answered_question_ids = set(
-            session.answers
-            .values_list('question_id', flat=True)
-        )
         next_question = (
             Question.objects
             .filter(survey_id=survey_pk)
-            .exclude(id__in=answered_question_ids)
+            .exclude(id__in=session.answers.values('question_id'))
             .prefetch_related('choices')
             .first()
         )
@@ -171,30 +167,31 @@ class SurveyStatView(generics.GenericAPIView):
 
         questions = (
             survey.questions
+            .annotate(answers_count=Count('answers'))
             .prefetch_related(
                 Prefetch(
-                    'answers',
-                    queryset=Answer.objects
-                        .filter(session__survey=survey)
-                        .select_related('session__user', 'choice'),
+                    'choices',
+                    queryset=Choice.objects.annotate(count=Count('answers')),
                 )
             )
         )
 
-        questions_stat = []
-        for q in questions:
-            questions_stat.append({
+        questions_stat = [
+            {
                 'question_id': q.pk,
                 'question_text': q.text,
-                'answers': [
+                'answers_count': q.answers_count,
+                'choices': [
                     {
-                        'username': a.session.user.username,
-                        'choice_id': a.choice_id,
-                        'choice_text': a.choice.text,
+                        'choice_id': c.pk,
+                        'choice_text': c.text,
+                        'count': c.count,
                     }
-                    for a in q.answers.all()
+                    for c in q.choices.all()
                 ],
-            })
+            }
+            for q in questions
+        ]
 
         data = {
             'survey_id': survey.pk,

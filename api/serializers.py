@@ -52,22 +52,26 @@ class QuestionWriteSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-class SurveyListSerializer(serializers.ModelSerializer):
+class SurveyBaseSerializer(serializers.ModelSerializer):
     author_username = serializers.CharField(source='author.username', read_only=True)
+
+    class Meta:
+        model = Survey
+        fields = ('id', 'title', 'author_username', 'created_at')
+
+
+class SurveyListSerializer(SurveyBaseSerializer):
     questions_count = serializers.IntegerField(read_only=True)
 
-    class Meta:
-        model = Survey
-        fields = ('id', 'title', 'author_username', 'created_at', 'questions_count')
+    class Meta(SurveyBaseSerializer.Meta):
+        fields = SurveyBaseSerializer.Meta.fields + ('questions_count',)
 
 
-class SurveyDetailSerializer(serializers.ModelSerializer):
-    author_username = serializers.CharField(source='author.username', read_only=True)
+class SurveyDetailSerializer(SurveyBaseSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
 
-    class Meta:
-        model = Survey
-        fields = ('id', 'title', 'author_username', 'created_at', 'questions')
+    class Meta(SurveyBaseSerializer.Meta):
+        fields = SurveyBaseSerializer.Meta.fields + ('questions',)
 
 
 class SurveyWriteSerializer(serializers.ModelSerializer):
@@ -134,16 +138,17 @@ class AnswerSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class AnswerStatSerializer(serializers.Serializer):
-    username = serializers.CharField()
+class ChoiceStatSerializer(serializers.Serializer):
     choice_id = serializers.IntegerField()
     choice_text = serializers.CharField()
+    count = serializers.IntegerField()
 
 
 class QuestionStatSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()
     question_text = serializers.CharField()
-    answers = AnswerStatSerializer(many=True)
+    answers_count = serializers.IntegerField()
+    choices = ChoiceStatSerializer(many=True)
 
 
 class SurveyStatSerializer(serializers.Serializer):
