@@ -97,18 +97,8 @@ class SurveySession(models.Model):
         ]
 
     def __str__(self):
-        status = 'завершён' if self.is_completed else 'в процессе'
+        status = 'завершён' if self.completed_at else 'в процессе'
         return f'{self.user} → {self.survey} ({status})'
-
-    @property
-    def is_completed(self) -> bool:
-        return self.completed_at is not None
-
-    @property
-    def duration_seconds(self) -> float | None:
-        if self.completed_at:
-            return (self.completed_at - self.started_at).total_seconds()
-        return None
 
 
 class Answer(models.Model):
@@ -127,7 +117,6 @@ class Answer(models.Model):
         on_delete=models.PROTECT,
         verbose_name='Выбранный вариант',
     )
-    answered_at = models.DateTimeField('Время ответа', auto_now_add=True)
 
     class Meta:
         default_related_name = 'answers'

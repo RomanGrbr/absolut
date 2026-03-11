@@ -85,13 +85,10 @@ class SurveyWriteSerializer(serializers.ModelSerializer):
 
 
 class SurveySessionSerializer(serializers.ModelSerializer):
-    duration_seconds = serializers.FloatField(read_only=True)
-    is_completed = serializers.BooleanField(read_only=True)
-
     class Meta:
         model = SurveySession
-        fields = ('id', 'survey', 'started_at', 'completed_at', 'is_completed', 'duration_seconds')
-        read_only_fields = ('id', 'started_at', 'completed_at', 'is_completed', 'duration_seconds')
+        fields = ('id', 'survey', 'started_at', 'completed_at')
+        read_only_fields = ('started_at', 'completed_at')
 
     def validate_survey(self, survey: Survey) -> Survey:
         user = self.context['request'].user
@@ -111,8 +108,7 @@ class AnswerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Answer
-        fields = ('id', 'session', 'question', 'choice', 'answered_at')
-        read_only_fields = ('id', 'answered_at')
+        fields = ('id', 'session', 'question', 'choice')
 
     def validate(self, attrs: dict) -> dict:
         session  = attrs['session']
